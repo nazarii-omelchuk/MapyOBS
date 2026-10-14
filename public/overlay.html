@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>GTA GPS Minimap — OBS</title>
+  <title>GPS Minimap — OBS</title>
 
   <link
     rel="stylesheet"
@@ -38,7 +38,6 @@
       align-items: center;
     }
 
-    /* Вертикальний стек: карта + швидкість під нею */
     #hud {
       display: flex;
       flex-direction: column;
@@ -46,7 +45,6 @@
       flex: 0 0 auto;
     }
 
-    /* Зовнішня рамка в стилі ігрового HUD */
     #minimap-frame {
       position: relative;
       width: var(--map-size);
@@ -63,7 +61,6 @@
         inset 0 1px 2px rgba(255, 255, 255, 0.15);
     }
 
-    /* Кругла область карти */
     #minimap {
       position: relative;
       width: 100%;
@@ -82,7 +79,6 @@
       background: #303b35;
     }
 
-    /* Тонкий внутрішній контур */
     #minimap::after {
       content: "";
       position: absolute;
@@ -95,7 +91,6 @@
       pointer-events: none;
     }
 
-    /* Прибираємо стандартні елементи Leaflet */
     .leaflet-control-zoom {
       display: none !important;
     }
@@ -111,7 +106,6 @@
       color: #fff !important;
     }
 
-    /* Верхній компас */
     #compass {
       position: absolute;
       z-index: 850;
@@ -133,7 +127,6 @@
       pointer-events: none;
     }
 
-    /* GPS-індикатор */
     #gps-status {
       position: absolute;
       z-index: 850;
@@ -170,7 +163,6 @@
       background: #ff4545;
     }
 
-    /* Швидкість руху — під карткою, за межами кола */
     #speed {
       flex: 0 0 auto;
       margin-top: 14px;
@@ -199,7 +191,6 @@
       opacity: 0.85;
     }
 
-    /* Маркер GPS */
     .gps-marker {
       width: 18px;
       height: 18px;
@@ -211,7 +202,6 @@
         0 0 12px rgba(0, 217, 255, 0.9);
     }
 
-    /* Повідомлення про помилку */
     #error {
       position: absolute;
       z-index: 900;
@@ -340,7 +330,6 @@
           lineJoin: "round"
         }).addTo(map);
 
-        // Центральний маркер
         const markerIcon = L.divIcon({
           className: "",
           html: '<div class="gps-marker"></div>',
@@ -397,7 +386,6 @@
               throw new Error("Отримані некоректні координати");
             }
 
-            // Traccar віддає швидкість у вузлах — переводимо в км/год
             const kmh = Math.round((Number(p.speed) || 0) * 1.852);
             speedValue.textContent = String(kmh);
 
@@ -410,8 +398,6 @@
               firstFix = false;
             }
 
-            // Центруємо карту за GPS-маркером.
-            // Якщо точка не змінилась, не рухаємо карту без потреби.
             if (pointKey !== lastPointKey) {
               map.panTo([lat, lon], { animate: false });
               lastPointKey = pointKey;
@@ -428,7 +414,6 @@
           }
         }
 
-        // Після створення Leaflet-карти коректно перераховуємо розмір.
         requestAnimationFrame(() => map.invalidateSize());
 
         await updateGPS();

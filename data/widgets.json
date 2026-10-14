@@ -1,14 +1,14 @@
 {
   "widgets": [
     {
-      "token": "pFHsVD4JZA2-znpg_0zMmfn3",
+      "token": "Q6EEvDjV2Oyb3xbCgdNz9agK",
       "baseUrl": "http://127.0.0.1:8082",
       "username": "nazar.omelchuk.m@gmail.com",
       "password": "1239Fg27-",
       "identifier": "myredmigps",
-      "hours": 12,
+      "hours": 24,
       "deviceName": "My Redmi",
-      "createdAt": "2026-10-14T20:20:41.214Z"
+      "createdAt": "2026-10-14T22:31:33.376Z"
     }
   ]
 }
