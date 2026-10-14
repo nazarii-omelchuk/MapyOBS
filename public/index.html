@@ -1,0 +1,683 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MapyOBS — генератор GPS-віджету для OBS</title>
+
+  <style>
+    :root {
+      --bg: #0b0f14;
+      --card: #131a21;
+      --card-2: #0f151b;
+      --border: #232d38;
+      --accent: #00d9ff;
+      --accent-dark: #0098b3;
+      --text: #e6edf3;
+      --muted: #8b98a5;
+      --error: #ff5f56;
+      --success: #35d07f;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      padding: 40px 20px 60px;
+      background:
+        radial-gradient(900px 500px at 15% -10%, #12202b 0%, transparent 60%),
+        radial-gradient(700px 400px at 110% 10%, #0e1a24 0%, transparent 55%),
+        var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", Arial, sans-serif;
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 34px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 34px;
+      letter-spacing: 1px;
+    }
+
+    h1 span {
+      color: var(--accent);
+    }
+
+    .sub {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 22px 24px;
+      margin-bottom: 22px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    h2 .step {
+      display: inline-flex;
+      justify-content: center;
+      align-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #04222b;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    label b {
+      display: block;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--card-2);
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(0, 217, 255, 0.15);
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 160px;
+      gap: 16px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    button,
+    .btn {
+      padding: 11px 20px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: filter 0.15s, background 0.15s;
+      font-family: inherit;
+    }
+
+    button.primary,
+    .btn.primary {
+      background: linear-gradient(180deg, var(--accent), var(--accent-dark));
+      color: #04222b;
+    }
+
+    button.ghost,
+    .btn.ghost {
+      background: transparent;
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    button:hover:not(:disabled),
+    .btn:hover {
+      filter: brightness(1.12);
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 11px 14px;
+      border-radius: 9px;
+      font-size: 13.5px;
+      border: 1px solid transparent;
+    }
+
+    .status.loading {
+      background: rgba(0, 217, 255, 0.08);
+      border-color: rgba(0, 217, 255, 0.3);
+      color: var(--accent);
+    }
+
+    .status.error {
+      background: rgba(255, 95, 86, 0.1);
+      border-color: rgba(255, 95, 86, 0.4);
+      color: var(--error);
+    }
+
+    .status.success {
+      background: rgba(53, 208, 127, 0.1);
+      border-color: rgba(53, 208, 127, 0.4);
+      color: var(--success);
+    }
+
+    .picker {
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 10px;
+      background: var(--card-2);
+      border: 1px dashed var(--border);
+    }
+
+    .picker p,
+    .hint {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .devices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .device {
+      padding: 8px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: rgba(0, 217, 255, 0.06);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .device:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .device small {
+      color: var(--muted);
+      font-weight: 400;
+      margin-left: 6px;
+    }
+
+    .url-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .url-row input {
+      flex: 1 1 320px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+    }
+
+    .url-row button,
+    .url-row .btn {
+      flex: 0 0 auto;
+    }
+
+    .preview-box {
+      margin-top: 18px;
+      display: flex;
+      gap: 18px;
+      flex-wrap: wrap;
+      align-items: flex-start;
+    }
+
+    .preview-box iframe {
+      width: 300px;
+      height: 360px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: #0d1117;
+      flex: 0 0 auto;
+    }
+
+    .widgets {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .widget-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 12px 14px;
+      border-radius: 10px;
+      background: var(--card-2);
+      border: 1px solid var(--border);
+    }
+
+    .widget-info {
+      flex: 1 1 220px;
+      min-width: 0;
+    }
+
+    .widget-info .name {
+      font-weight: 700;
+      font-size: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .widget-info .meta {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .widget-row .mini-btn {
+      padding: 7px 12px;
+      font-size: 12.5px;
+      border-radius: 7px;
+    }
+
+    .empty {
+      color: var(--muted);
+      font-size: 13.5px;
+      margin: 0;
+    }
+
+    .foot {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12.5px;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+
+<body>
+  <main class="wrap">
+    <header>
+      <h1>Mapy<span>OBS</span></h1>
+      <p class="sub">Створення GPS-віджету карти для OBS Studio з даних Traccar</p>
+    </header>
+
+    <section class="card">
+      <h2><span class="step">1</span> Дані Traccar</h2>
+
+      <form id="widget-form" novalidate>
+        <label>
+          <b>Логін (email)</b>
+          <input id="username" type="text" placeholder="you@example.com"
+                 autocomplete="username">
+        </label>
+
+        <label>
+          <b>Пароль</b>
+          <input id="password" type="password" placeholder="••••••••"
+                 autocomplete="current-password">
+        </label>
+
+        <div class="row">
+          <label>
+            <b>Ідентифікатор пристрою (Identifier)</b>
+            <input id="identifier" type="text" placeholder="myphonegps">
+          </label>
+
+          <label>
+            <b>Історія, годин</b>
+            <input id="hours" type="number" min="1" max="168" value="12">
+          </label>
+        </div>
+
+        <label>
+          <b>Адреса Traccar</b>
+          <input id="baseUrl" type="text" value="http://127.0.0.1:8082">
+        </label>
+
+        <div class="actions">
+          <button type="submit" class="primary" id="create-btn">
+            Створити віджет
+          </button>
+          <button type="button" class="ghost" id="test-btn">
+            Перевірити підключення
+          </button>
+        </div>
+
+        <div id="form-status" class="status" hidden></div>
+      </form>
+
+      <div id="device-picker" class="picker" hidden>
+        <p>Пристрої на вашому акаунті — натисніть, щоб підставити ідентифікатор:</p>
+        <div id="device-list" class="devices"></div>
+      </div>
+    </section>
+
+    <section class="card" id="result-card" hidden>
+      <h2><span class="step">2</span> Ваш віджет готовий</h2>
+      <p class="hint">
+        Скопіюйте посилання та додайте його в OBS Studio:
+        <b>Джерела → Браузер</b>. Рекомендований розмір 600×600.
+      </p>
+
+      <div class="url-row">
+        <input id="overlay-url" type="text" readonly>
+        <button type="button" class="primary" id="copy-btn">Копіювати</button>
+        <a class="btn ghost" id="open-btn" target="_blank" rel="noopener">
+          Відкрити
+        </a>
+      </div>
+
+      <p class="hint" id="result-device" style="margin-top:10px"></p>
+
+      <div class="preview-box">
+        <iframe id="preview" title="Попередній перегляд віджету"></iframe>
+        <div class="hint" style="flex:1 1 220px">
+          Попередній перегляд оновлюється автоматично.
+          Якщо карта порожня — перевірте, чи пристрій надсилає
+          координати в Traccar.
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Мої віджети</h2>
+      <div id="widgets-list" class="widgets"></div>
+    </section>
+
+    <footer class="foot">
+      Усі дані зберігаються локально на вашому комп'ютері.
+    </footer>
+  </main>
+
+  <script>
+    (function () {
+      const $ = id => document.getElementById(id);
+
+      const form = $("widget-form");
+      const statusBox = $("form-status");
+      const createBtn = $("create-btn");
+      const testBtn = $("test-btn");
+      const picker = $("device-picker");
+      const deviceList = $("device-list");
+      const resultCard = $("result-card");
+      const overlayUrl = $("overlay-url");
+      const openBtn = $("open-btn");
+      const resultDevice = $("result-device");
+      const preview = $("preview");
+      const widgetsList = $("widgets-list");
+      const copyBtn = $("copy-btn");
+
+      function setStatus(type, message) {
+        statusBox.hidden = !message;
+        statusBox.textContent = message || "";
+        statusBox.className = "status" + (type ? " " + type : "");
+      }
+
+      function setBusy(busy) {
+        createBtn.disabled = busy;
+        testBtn.disabled = busy;
+        createBtn.textContent = busy
+          ? "Створюємо…"
+          : "Створити віджет";
+      }
+
+      function readForm() {
+        return {
+          baseUrl: $("baseUrl").value.trim(),
+          username: $("username").value.trim(),
+          password: $("password").value,
+          identifier: $("identifier").value.trim(),
+          hours: Number($("hours").value) || 12
+        };
+      }
+
+      async function api(url, options) {
+        const r = await fetch(url, options);
+        let data = {};
+        try {
+          data = await r.json();
+        } catch (e) {
+          data = {};
+        }
+        return { ok: r.ok, status: r.status, data };
+      }
+
+      function renderDevices(devices) {
+        if (!devices || !devices.length) {
+          picker.hidden = true;
+          return;
+        }
+        deviceList.innerHTML = "";
+        for (const d of devices) {
+          const chip = document.createElement("button");
+          chip.type = "button";
+          chip.className = "device";
+          chip.innerHTML = "";
+          chip.append(document.createTextNode(d.name || "Без назви"));
+          const small = document.createElement("small");
+          small.textContent = d.uniqueId || "";
+          chip.append(small);
+          chip.addEventListener("click", () => {
+            if (d.uniqueId) $("identifier").value = d.uniqueId;
+          });
+          deviceList.append(chip);
+        }
+        picker.hidden = false;
+      }
+
+      function fullUrl(path) {
+        return new URL(path, location.origin).href;
+      }
+
+      function showResult(widget) {
+        const url = fullUrl(widget.overlayUrl);
+        overlayUrl.value = url;
+        openBtn.href = url;
+        resultDevice.textContent =
+          `Пристрій: ${widget.deviceName || "—"} ` +
+          `(identifier: ${widget.identifier}), ` +
+          `історія: ${widget.hours} год`;
+        resultCard.hidden = false;
+        preview.src = widget.overlayUrl;
+      }
+
+      async function copyText(text) {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (e) {
+          overlayUrl.select();
+          document.execCommand("copy");
+        }
+        copyBtn.textContent = "Скопійовано";
+        setTimeout(() => {
+          copyBtn.textContent = "Копіювати";
+        }, 1600);
+      }
+
+      async function loadWidgets() {
+        const { data } = await api("/api/widgets");
+        const widgets = (data && data.widgets) || [];
+        widgetsList.innerHTML = "";
+
+        if (!widgets.length) {
+          const p = document.createElement("p");
+          p.className = "empty";
+          p.textContent = "Ще немає створених віджетів.";
+          widgetsList.append(p);
+          return;
+        }
+
+        for (const w of widgets) {
+          const row = document.createElement("div");
+          row.className = "widget-row";
+
+          const info = document.createElement("div");
+          info.className = "widget-info";
+
+          const name = document.createElement("div");
+          name.className = "name";
+          name.textContent = w.deviceName || w.identifier;
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+          meta.textContent =
+            `${w.identifier} • ${w.baseUrl} • ` +
+            `створено ${new Date(w.createdAt).toLocaleString("uk-UA")}`;
+
+          info.append(name, meta);
+
+          const open = document.createElement("a");
+          open.className = "btn primary mini-btn";
+          open.href = fullUrl(w.overlayUrl);
+          open.target = "_blank";
+          open.rel = "noopener";
+          open.textContent = "Відкрити";
+
+          const copy = document.createElement("button");
+          copy.type = "button";
+          copy.className = "btn ghost mini-btn";
+          copy.textContent = "Копіювати";
+          copy.addEventListener("click", () =>
+            copyText(fullUrl(w.overlayUrl))
+          );
+
+          const del = document.createElement("button");
+          del.type = "button";
+          del.className = "btn ghost mini-btn";
+          del.textContent = "Видалити";
+          del.addEventListener("click", async () => {
+            if (!confirm("Видалити цей віджет?")) return;
+            await api("/api/widgets/" + encodeURIComponent(w.token), {
+              method: "DELETE"
+            });
+            loadWidgets();
+          });
+
+          row.append(info, open, copy, del);
+          widgetsList.append(row);
+        }
+      }
+
+      form.addEventListener("submit", async e => {
+        e.preventDefault();
+        setBusy(true);
+        setStatus("loading", "Перевіряємо дані та створюємо віджет…");
+
+        try {
+          const { ok, data } = await api("/api/widgets", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(readForm())
+          });
+
+          if (!ok) {
+            renderDevices(data.devices);
+            setStatus("error", data.error || "Не вдалося створити віджет");
+            return;
+          }
+
+          showResult(data.widget);
+          setStatus("success", "Віджет створено! Посилання готове нижче.");
+          loadWidgets();
+        } catch (err) {
+          setStatus("error", "Сервер недоступний. Спробуйте пізніше.");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      testBtn.addEventListener("click", async () => {
+        const f = readForm();
+        if (!f.username || !f.password) {
+          setStatus("error", "Вкажіть логін і пароль Traccar");
+          return;
+        }
+
+        setBusy(true);
+        setStatus("loading", "Перевіряємо підключення до Traccar…");
+
+        try {
+          const { ok, data } = await api("/api/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              baseUrl: f.baseUrl,
+              username: f.username,
+              password: f.password
+            })
+          });
+
+          if (!ok) {
+            picker.hidden = true;
+            setStatus("error", data.error || "Не вдалося підключитися");
+            return;
+          }
+
+          setStatus(
+            "success",
+            `Підключення успішне. Знайдено пристроїв: ${data.count}`
+          );
+          renderDevices(data.devices);
+        } catch (err) {
+          setStatus("error", "Сервер недоступний. Спробуйте пізніше.");
+        } finally {
+          setBusy(false);
+        }
+      });
+
+      copyBtn.addEventListener("click", () =>
+        copyText(overlayUrl.value)
+      );
+
+      loadWidgets();
+    })();
+  </script>
+</body>
+</html>

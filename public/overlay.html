@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GTA GPS Minimap — OBS</title>
+
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  >
+
+  <style>
+    :root {
+      --map-size: min(100vw, calc(100vh - 70px), 600px);
+      --accent: #00d9ff;
+      --frame: #171b20;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Вертикальний стек: карта + швидкість під нею */
+    #hud {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+
+    /* Зовнішня рамка в стилі ігрового HUD */
+    #minimap-frame {
+      position: relative;
+      width: var(--map-size);
+      height: var(--map-size);
+      flex: 0 0 auto;
+      border-radius: 50%;
+      padding: 7px;
+      background:
+        linear-gradient(145deg, #454c53, #101316 35%, #292e34);
+      border: 1px solid #737a80;
+      box-shadow:
+        0 0 0 2px #080a0c,
+        0 5px 20px rgba(0, 0, 0, 0.55),
+        inset 0 1px 2px rgba(255, 255, 255, 0.15);
+    }
+
+    /* Кругла область карти */
+    #minimap {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 50%;
+      background: #303b35;
+      border: 2px solid rgba(0, 0, 0, 0.8);
+    }
+
+    #map {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: #303b35;
+    }
+
+    /* Тонкий внутрішній контур */
+    #minimap::after {
+      content: "";
+      position: absolute;
+      z-index: 800;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, 0.16);
+      box-shadow:
+        inset 0 0 18px rgba(0, 0, 0, 0.25);
+      pointer-events: none;
+    }
+
+    /* Прибираємо стандартні елементи Leaflet */
+    .leaflet-control-zoom {
+      display: none !important;
+    }
+
+    .leaflet-control-attribution {
+      font-size: 8px !important;
+      background: rgba(15, 19, 22, 0.7) !important;
+      color: #ddd !important;
+      border-radius: 4px 0 0 0;
+    }
+
+    .leaflet-control-attribution a {
+      color: #fff !important;
+    }
+
+    /* Верхній компас */
+    #compass {
+      position: absolute;
+      z-index: 850;
+      top: 5%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: white;
+      font-weight: 900;
+      font-size: 13px;
+      text-shadow: 0 1px 4px #000;
+      background: rgba(12, 16, 20, 0.72);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      pointer-events: none;
+    }
+
+    /* GPS-індикатор */
+    #gps-status {
+      position: absolute;
+      z-index: 850;
+      bottom: 8%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      color: white;
+      background: rgba(10, 14, 18, 0.78);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: bold;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+
+    #gps-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 7px currentColor;
+    }
+
+    #gps-status.online #gps-dot {
+      background: #34e878;
+    }
+
+    #gps-status.error #gps-dot {
+      background: #ff4545;
+    }
+
+    /* Швидкість руху — під карткою, за межами кола */
+    #speed {
+      flex: 0 0 auto;
+      margin-top: 14px;
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      padding: 8px 18px;
+      color: #fff;
+      background: rgba(12, 16, 20, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      border-radius: 20px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+      text-shadow: 0 1px 3px #000;
+    }
+
+    #speed-value {
+      font-size: 34px;
+      font-weight: 900;
+      line-height: 1;
+      min-width: 2ch;
+      text-align: center;
+    }
+
+    #speed-unit {
+      font-size: 14px;
+      opacity: 0.85;
+    }
+
+    /* Маркер GPS */
+    .gps-marker {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #13cfff;
+      border: 3px solid white;
+      box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.8),
+        0 0 12px rgba(0, 217, 255, 0.9);
+    }
+
+    /* Повідомлення про помилку */
+    #error {
+      position: absolute;
+      z-index: 900;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      max-width: 75%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      background: rgba(10, 10, 10, 0.9);
+      color: white;
+      text-align: center;
+      font-size: 12px;
+      display: none;
+    }
+
+    #error.visible {
+      display: block;
+    }
+  </style>
+</head>
+
+  <body>
+  <div id="hud">
+    <div id="minimap-frame">
+      <div id="minimap">
+        <div id="map"></div>
+
+        <div id="compass">N</div>
+
+      <div id="gps-status">
+        <span id="gps-dot"></span>
+        <span id="gps-label">GPS: очікування</span>
+      </div>
+
+        <div id="error"></div>
+      </div>
+    </div>
+
+    <div id="speed">
+      <span id="speed-value">0</span>
+      <span id="speed-unit">км/год</span>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    (async function () {
+      const params = new URLSearchParams(location.search);
+      const WIDGET_KEY = params.get("key") || "";
+      const KEY_QUERY = WIDGET_KEY
+        ? "?key=" + encodeURIComponent(WIDGET_KEY)
+        : "";
+
+      const status = document.getElementById("gps-status");
+      const label = document.getElementById("gps-label");
+      const errorBox = document.getElementById("error");
+      const speedValue = document.getElementById("speed-value");
+
+      let map;
+      let routeLine;
+      let playerMarker;
+      let lastPointKey = "";
+      let firstFix = true;
+      let requestInProgress = false;
+
+      function showError(message) {
+        errorBox.textContent = message;
+        errorBox.classList.add("visible");
+        status.classList.add("error");
+        status.classList.remove("online");
+        label.textContent = "GPS: помилка";
+      }
+
+      function clearError() {
+        errorBox.classList.remove("visible");
+        status.classList.remove("error");
+      }
+
+      if (!WIDGET_KEY) {
+        showError(
+          "Не вказано ключ віджету. Відкрийте головну сторінку " +
+          location.origin + "/ і ствворіть віджет."
+        );
+        return;
+      }
+
+      try {
+        const configResponse = await fetch("/api/config" + KEY_QUERY, {
+          cache: "no-store"
+        });
+
+        const config = await configResponse.json();
+
+        if (!configResponse.ok) {
+          throw new Error(config.error || "Не вдалося завантажити конфігурацію");
+        }
+
+        map = L.map("map", {
+          zoomControl: false,
+          attributionControl: true,
+          zoomAnimation: false,
+          fadeAnimation: false,
+          markerZoomAnimation: false,
+          preferCanvas: true
+        });
+
+        L.tileLayer(
+          "https://api.mapy.com/v1/maptiles/outdoor/256/{z}/{x}/{y}?apikey=" +
+          encodeURIComponent(config.mapyApiKey),
+          {
+            minZoom: 3,
+            maxZoom: 19,
+            attribution:
+              '&copy; <a href="https://www.mapy.com/">Mapy.com</a> &copy; OpenStreetMap contributors'
+          }
+        ).addTo(map);
+
+        // Синя лінія пройденого маршруту
+        routeLine = L.polyline([], {
+          color: "#00d9ff",
+          weight: 5,
+          opacity: 0.95,
+          lineCap: "round",
+          lineJoin: "round"
+        }).addTo(map);
+
+        // Центральний маркер
+        const markerIcon = L.divIcon({
+          className: "",
+          html: '<div class="gps-marker"></div>',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+
+        playerMarker = L.marker([49, 31], {
+          icon: markerIcon,
+          interactive: false,
+          zIndexOffset: 1000
+        }).addTo(map);
+
+        map.setView([49, 31], 6);
+
+        async function updateGPS() {
+          if (requestInProgress) return;
+          requestInProgress = true;
+
+          try {
+            const response = await fetch("/api/track" + KEY_QUERY, {
+              cache: "no-store"
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.ok) {
+              throw new Error(data.error || "Traccar недоступний");
+            }
+
+            clearError();
+
+            const points = (data.route || []).filter(p =>
+              Number.isFinite(Number(p.lat)) &&
+              Number.isFinite(Number(p.lon))
+            );
+
+            routeLine.setLatLngs(
+              points.map(p => [Number(p.lat), Number(p.lon)])
+            );
+
+            if (!data.latest) {
+              label.textContent = "GPS: очікування";
+              status.classList.remove("online");
+              speedValue.textContent = "0";
+              return;
+            }
+
+            const p = data.latest;
+            const lat = Number(p.lat);
+            const lon = Number(p.lon);
+
+            if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+              throw new Error("Отримані некоректні координати");
+            }
+
+            // Traccar віддає швидкість у вузлах — переводимо в км/год
+            const kmh = Math.round((Number(p.speed) || 0) * 1.852);
+            speedValue.textContent = String(kmh);
+
+            playerMarker.setLatLng([lat, lon]);
+
+            const pointKey = lat.toFixed(6) + "," + lon.toFixed(6);
+
+            if (firstFix) {
+              map.setView([lat, lon], 16, { animate: false });
+              firstFix = false;
+            }
+
+            // Центруємо карту за GPS-маркером.
+            // Якщо точка не змінилась, не рухаємо карту без потреби.
+            if (pointKey !== lastPointKey) {
+              map.panTo([lat, lon], { animate: false });
+              lastPointKey = pointKey;
+            }
+
+            status.classList.add("online");
+            status.classList.remove("error");
+
+            label.textContent = "GPS АКТИВНИЙ";
+          } catch (error) {
+            showError(error.message || "Немає зв'язку");
+          } finally {
+            requestInProgress = false;
+          }
+        }
+
+        // Після створення Leaflet-карти коректно перераховуємо розмір.
+        requestAnimationFrame(() => map.invalidateSize());
+
+        await updateGPS();
+        setInterval(updateGPS, 1500);
+
+      } catch (error) {
+        showError(error.message || "Не вдалося запустити карту");
+      }
+    })();
+  </script>
+</body>
+</html>
