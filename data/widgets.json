@@ -8,7 +8,27 @@
       "identifier": "myredmigps",
       "hours": 24,
       "deviceName": "My Redmi",
-      "createdAt": "2026-10-14T22:31:33.376Z"
+      "createdAt": "2026-10-14T22:31:33.376Z",
+      "view": {
+        "follow": true,
+        "zoom": 16,
+        "center": null
+      }
+    },
+    {
+      "token": "HeH0Ytuf-qKmJNJGBmus-n_v",
+      "baseUrl": "http://127.0.0.1:8083",
+      "username": "test",
+      "password": "test",
+      "identifier": "testgps",
+      "hours": 24,
+      "deviceName": "Тестовий маршрут",
+      "createdAt": "2026-10-14T23:34:46.757Z",
+      "view": {
+        "follow": false,
+        "zoom": 16,
+        "center": null
+      }
     }
   ]
 }

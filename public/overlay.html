@@ -256,6 +256,24 @@
       const KEY_QUERY = WIDGET_KEY
         ? "?key=" + encodeURIComponent(WIDGET_KEY)
         : "";
+      const FOLLOW = params.get("follow") !== "0";
+      const ZOOM = Math.min(
+        19,
+        Math.max(3, Number(params.get("zoom")) || 16)
+      );
+
+      let CENTER = null;
+      const centerParam = params.get("center") || "";
+      const centerMatch = centerParam.match(
+        /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/
+      );
+      if (centerMatch) {
+        const centerLat = Number(centerMatch[1]);
+        const centerLon = Number(centerMatch[2]);
+        if (Math.abs(centerLat) <= 90 && Math.abs(centerLon) <= 180) {
+          CENTER = [centerLat, centerLon];
+        }
+      }
 
       const status = document.getElementById("gps-status");
       const label = document.getElementById("gps-label");
@@ -280,6 +298,17 @@
       function clearError() {
         errorBox.classList.remove("visible");
         status.classList.remove("error");
+      }
+
+      // Коли камера не слідкує за маркером і центр не задано —
+      // вміщуємо весь маршрут у полі зору.
+      function keepRouteInView(latlng) {
+        if (map.getBounds().contains(L.latLng(latlng))) return;
+
+        const pts = routeLine.getLatLngs().map(p => [p.lat, p.lng]);
+        pts.push([latlng[0], latlng[1]]);
+        const padded = L.latLngBounds(pts).pad(0.25);
+        map.fitBounds(padded, { animate: false, maxZoom: 19 });
       }
 
       if (!WIDGET_KEY) {
@@ -337,13 +366,15 @@
           iconAnchor: [9, 9]
         });
 
-        playerMarker = L.marker([49, 31], {
+        const initialView = CENTER || [49, 31];
+
+        playerMarker = L.marker(initialView, {
           icon: markerIcon,
           interactive: false,
           zIndexOffset: 1000
         }).addTo(map);
 
-        map.setView([49, 31], 6);
+        map.setView(initialView, ZOOM);
 
         async function updateGPS() {
           if (requestInProgress) return;
@@ -394,13 +425,23 @@
             const pointKey = lat.toFixed(6) + "," + lon.toFixed(6);
 
             if (firstFix) {
-              map.setView([lat, lon], 16, { animate: false });
+              if (FOLLOW) {
+                map.setView([lat, lon], ZOOM, { animate: false });
+              }
               firstFix = false;
             }
 
-            if (pointKey !== lastPointKey) {
-              map.panTo([lat, lon], { animate: false });
-              lastPointKey = pointKey;
+            if (FOLLOW) {
+              // Камера слідкує за GPS-маркером.
+              // Якщо точка не змінилась, не рухаємо карту без потреби.
+              if (pointKey !== lastPointKey) {
+                map.panTo([lat, lon], { animate: false });
+                lastPointKey = pointKey;
+              }
+            } else if (!CENTER) {
+              // Фіксованого центру немає — вміщуємо весь маршрут
+              // у полі зору, але камера не «прилипає» до маркера.
+              keepRouteInView([lat, lon]);
             }
 
             status.classList.add("online");

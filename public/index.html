@@ -326,6 +326,24 @@
       border-radius: 7px;
     }
 
+    .checkbox {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding-top: 22px;
+      color: var(--text);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .checkbox input {
+      width: 16px;
+      height: 16px;
+      flex: 0 0 auto;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
     .empty {
       color: var(--muted);
       font-size: 13.5px;
@@ -380,6 +398,27 @@
           <b>Адреса Traccar</b>
           <input id="baseUrl" type="text" value="http://127.0.0.1:8082">
         </label>
+
+        <div class="row">
+          <label class="checkbox">
+            <input type="checkbox" id="follow" checked>
+            <span>Камера слідкує за GPS-маркером</span>
+          </label>
+
+          <label>
+            <b>Зум карти (3–19)</b>
+            <input id="zoom" type="number" min="3" max="19" value="16">
+          </label>
+        </div>
+
+        <label>
+          <b>Фіксований центр карти</b>
+          <input id="center" type="text" placeholder="50.4500,30.5200 — необов'язково">
+        </label>
+        <p class="hint" style="margin-top:-8px">
+          Без «слідкування» карта не їде за маркером: із заданим центром —
+          статичний кадр, без нього — автоматично вміщає весь маршрут.
+        </p>
 
         <div class="actions">
           <button type="submit" class="primary" id="create-btn">
@@ -474,7 +513,10 @@
           username: $("username").value.trim(),
           password: $("password").value,
           identifier: $("identifier").value.trim(),
-          hours: Number($("hours").value) || 12
+          hours: Number($("hours").value) || 12,
+          follow: $("follow").checked,
+          zoom: Number($("zoom").value) || 16,
+          center: $("center").value.trim()
         };
       }
 
@@ -567,8 +609,10 @@
 
           const meta = document.createElement("div");
           meta.className = "meta";
+          const follows = w.view ? w.view.follow !== false : true;
           meta.textContent =
             `${w.identifier} • ${w.baseUrl} • ` +
+            `${follows ? "камера слідкує" : "фіксована камера"} • ` +
             `створено ${new Date(w.createdAt).toLocaleString("uk-UA")}`;
 
           info.append(name, meta);

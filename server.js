@@ -37,6 +37,41 @@ function httpError(status, message) {
   return e;
 }
 
+function parseCenter(value) {
+  if (!value) return null;
+  const m = String(value).match(
+    /^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/
+  );
+  if (!m) return null;
+  const lat = Number(m[1]);
+  const lon = Number(m[2]);
+  if (Math.abs(lat) > 90 || Math.abs(lon) > 180) return null;
+  return `${lat},${lon}`;
+}
+
+function normalizeView(view) {
+  const v = view || {};
+  const zoom = Math.min(
+    19,
+    Math.max(3, Math.round(Number(v.zoom) || 16))
+  );
+  return {
+    follow: v.follow === false ? false : true,
+    zoom,
+    center: parseCenter(v.center)
+  };
+}
+
+function overlayUrlFor(w) {
+  const q = new URLSearchParams({
+    key: w.token,
+    follow: w.view.follow ? "1" : "0",
+    zoom: String(w.view.zoom)
+  });
+  if (w.view.center) q.set("center", w.view.center);
+  return "/overlay.html?" + q.toString();
+}
+
 function valid(p) {
   return p &&
     Number.isFinite(Number(p.latitude)) &&
@@ -66,6 +101,7 @@ class Widget {
     this.hours = cfg.hours;
     this.deviceName = cfg.deviceName || null;
     this.createdAt = cfg.createdAt || new Date().toISOString();
+    this.view = normalizeView(cfg.view);
     this.deviceId = null;
     this.route = [];
     this.initPromise = null;
@@ -173,7 +209,8 @@ function serializeWidget(w) {
     identifier: w.identifier,
     hours: w.hours,
     deviceName: w.deviceName,
-    createdAt: w.createdAt
+    createdAt: w.createdAt,
+    view: w.view
   };
 }
 
@@ -185,7 +222,8 @@ function publicWidget(w) {
     deviceName: w.deviceName,
     hours: w.hours,
     createdAt: w.createdAt,
-    overlayUrl: `/overlay.html?key=${encodeURIComponent(w.token)}`
+    view: w.view,
+    overlayUrl: overlayUrlFor(w)
   };
 }
 
@@ -265,6 +303,17 @@ app.post("/api/widgets", async (req, res) => {
       168,
       Math.max(1, Math.round(Number(body.hours) || DEFAULT_HOURS))
     );
+    const follow = !(
+      body.follow === false ||
+      body.follow === "false" ||
+      body.follow === 0 ||
+      body.follow === "0"
+    );
+    const view = normalizeView({
+      follow,
+      zoom: body.zoom,
+      center: body.center
+    });
 
     if (!/^https?:\/\//i.test(baseUrl)) {
       return res.status(400).json({
@@ -288,7 +337,8 @@ app.post("/api/widgets", async (req, res) => {
       username,
       password,
       identifier,
-      hours
+      hours,
+      view
     });
 
     try {
