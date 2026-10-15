@@ -1,31 +1,16 @@
 {
   "widgets": [
     {
-      "token": "Q6EEvDjV2Oyb3xbCgdNz9agK",
+      "token": "iSfMvfEhL0lw89Qe6zWY3PBG",
       "baseUrl": "http://127.0.0.1:8082",
       "username": "nazar.omelchuk.m@gmail.com",
       "password": "1239Fg27-",
       "identifier": "myredmigps",
       "hours": 24,
       "deviceName": "My Redmi",
-      "createdAt": "2026-10-14T22:31:33.376Z",
+      "createdAt": "2026-10-15T15:58:51.449Z",
       "view": {
-        "follow": true,
-        "zoom": 16,
-        "center": null
-      }
-    },
-    {
-      "token": "wpwPBMYCAdMn3b5corE63NCS",
-      "baseUrl": "http://127.0.0.1:8083",
-      "username": "test",
-      "password": "test",
-      "identifier": "testgps",
-      "hours": 24,
-      "deviceName": "Тестовий маршрут",
-      "createdAt": "2026-10-15T01:01:37.768Z",
-      "view": {
-        "follow": true,
+        "follow": false,
         "zoom": 16,
         "center": null
       }

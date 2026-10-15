@@ -1,5 +1,6 @@
 const express = require("express");
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
 
@@ -19,6 +20,7 @@ if (fs.existsSync(envPath)) {
 
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "0.0.0.0";
 const MAPY_API_KEY = process.env.MAPY_API_KEY || "";
 const DEFAULT_BASE = (process.env.TRACCAR_URL || "http://127.0.0.1:8082")
   .replace(/\/+$/, "");
@@ -491,7 +493,43 @@ app.get("/api/track", async (req, res) => {
 
 loadWidgets();
 
-app.listen(PORT, "127.0.0.1", () => {
+function networkIps() {
+  const ips = [];
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === "IPv4" && !net.internal) {
+        ips.push(net.address);
+      }
+    }
+  }
+  return ips;
+}
+
+function ipLabel(ip) {
+  const o = ip.split(".").map(Number);
+  if (o[0] === 100 && o[1] >= 64 && o[1] <= 127) {
+    return "Tailscale";
+  }
+  return null;
+}
+
+app.listen(PORT, HOST, () => {
   console.log(`Головна сторінка: http://127.0.0.1:${PORT}/`);
   console.log(`OBS-посилання: http://127.0.0.1:${PORT}/overlay.html?key=...`);
+
+  const ips = networkIps();
+  if (ips.length && HOST !== "127.0.0.1") {
+    console.log("");
+    console.log("Доступно з інших пристроїв у мережі:");
+    for (const ip of ips) {
+      const label = ipLabel(ip);
+      console.log(
+        `  http://${ip}:${PORT}/${label ? "  (" + label + ")" : ""}`
+      );
+    }
+    console.log(
+      "Щоб закрити зовнішній доступ, додай HOST=127.0.0.1 у .env"
+    );
+  }
 });
