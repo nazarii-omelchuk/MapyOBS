@@ -95,6 +95,12 @@
       display: none !important;
     }
 
+    /* Плавніша easing-крива зум-анімації (тривалість 0.25с —
+       така сама, як внутрішній таймаут Leaflet, щоб не обривати перехід) */
+    .leaflet-zoom-anim .leaflet-zoom-animated {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
     .leaflet-control-attribution {
       font-size: 8px !important;
       background: rgba(15, 19, 22, 0.7) !important;
@@ -130,7 +136,7 @@
     #gps-status {
       position: absolute;
       z-index: 850;
-      bottom: 8%;
+      bottom: 2%;
       left: 50%;
       transform: translateX(-50%);
       display: flex;
@@ -300,15 +306,57 @@
         status.classList.remove("error");
       }
 
-      // Коли камера не слідкує за маркером і центр не задано —
-      // вміщуємо весь маршрут у полі зору.
+      // Режим без слідкування: тримаємо маршрут і маркер у центральній
+      // «безпечній зоні» кадру — перекадрування відбувається заздалегідь,
+      // поки маркер ще видно на карті, а не за рамкою.
+      // У точках також враховується упереджена позиція маркера (екстраполяція
+      // за швидкістю руху), тож кадр готується до переїзду заздалегідь.
+      const SAFE_MARGIN = 0.15;   // відступи безпечної зони від країв кадру
+      const FRAME_PADDING = 0.15; // відступ маршруту від країв після кадрування
+      const FRAME_ANIM = 1.2;     // тривалість анімації перекадрування (с)
+      const MARKER_ANIM = 1.2;    // тривалість плавного руху маркера (с)
+      let lastReframe = 0;
+
       function keepRouteInView(latlng) {
-        if (map.getBounds().contains(L.latLng(latlng))) return;
+        if (!map || !routeLine) return;
+        if (Date.now() - lastReframe < FRAME_ANIM * 1000 + 200) return;
 
         const pts = routeLine.getLatLngs().map(p => [p.lat, p.lng]);
-        pts.push([latlng[0], latlng[1]]);
-        const padded = L.latLngBounds(pts).pad(0.25);
-        map.fitBounds(padded, { animate: false, maxZoom: 19 });
+        pts.push(latlng);
+
+        // Упереджена позиція: якщо рух є — додаємо прогноз на один крок,
+        // щоб перекадрування встигло до виходу маркера за межі.
+        if (pts.length >= 2) {
+          const prev = pts[pts.length - 2];
+          const last = pts[pts.length - 1];
+          pts.push([
+            last[0] + (last[0] - prev[0]),
+            last[1] + (last[1] - prev[1])
+          ]);
+        }
+
+        const bounds = L.latLngBounds(pts);
+        if (!bounds.isValid()) return;
+
+        const size = map.getSize();
+        const minX = size.x * SAFE_MARGIN;
+        const maxX = size.x * (1 - SAFE_MARGIN);
+        const minY = size.y * SAFE_MARGIN;
+        const maxY = size.y * (1 - SAFE_MARGIN);
+
+        for (const p of pts) {
+          const pt = map.latLngToContainerPoint(p);
+          if (pt.x < minX || pt.x > maxX ||
+              pt.y < minY || pt.y > maxY) {
+            lastReframe = Date.now();
+            map.fitBounds(bounds.pad(FRAME_PADDING), {
+              animate: true,
+              duration: FRAME_ANIM,
+              maxZoom: 19
+            });
+            return;
+          }
+        }
       }
 
       if (!WIDGET_KEY) {
@@ -333,9 +381,10 @@
         map = L.map("map", {
           zoomControl: false,
           attributionControl: true,
-          zoomAnimation: false,
-          fadeAnimation: false,
-          markerZoomAnimation: false,
+          zoomAnimation: true,
+          fadeAnimation: true,
+          markerZoomAnimation: true,
+          zoomAnimationThreshold: 99,
           preferCanvas: true
         });
 
@@ -376,6 +425,65 @@
 
         map.setView(initialView, ZOOM);
 
+        // Плавний рух маркера: між оновленнями GPS позиція
+        // інтерполюється, тож маркер їде, а не стрибає.
+        // Лінія маршруту при цьому росте разом із маркером.
+        let currentRoute = [];
+        let markerAnim = null;
+        let markerAnimFrame = 0;
+
+        function renderRouteLine() {
+          const pts = currentRoute.slice();
+
+          // Поки маркер у дорозі — кінець лінії їде за ним,
+          // тож маршрут не вистрибує вперед.
+          if (pts.length && markerAnim) {
+            const m = playerMarker.getLatLng();
+            pts[pts.length - 1] = [m.lat, m.lng];
+          }
+
+          routeLine.setLatLngs(pts);
+        }
+
+        function animateMarker(lat, lon) {
+          const from = playerMarker.getLatLng();
+          markerAnim = {
+            fromLat: from.lat,
+            fromLon: from.lng,
+            toLat: lat,
+            toLon: lon,
+            start: performance.now(),
+            duration: MARKER_ANIM * 1000
+          };
+          if (!markerAnimFrame) {
+            markerAnimFrame = requestAnimationFrame(markerStep);
+          }
+        }
+
+        function markerStep(now) {
+          markerAnimFrame = 0;
+          if (!markerAnim) return;
+
+          const t = Math.min(
+            1,
+            Math.max(0, (now - markerAnim.start) / markerAnim.duration)
+          );
+
+          const lat = markerAnim.fromLat +
+            (markerAnim.toLat - markerAnim.fromLat) * t;
+          const lon = markerAnim.fromLon +
+            (markerAnim.toLon - markerAnim.fromLon) * t;
+
+          playerMarker.setLatLng([lat, lon]);
+          renderRouteLine();
+
+          if (t < 1) {
+            markerAnimFrame = requestAnimationFrame(markerStep);
+          } else {
+            markerAnim = null;
+          }
+        }
+
         async function updateGPS() {
           if (requestInProgress) return;
           requestInProgress = true;
@@ -396,11 +504,10 @@
             const points = (data.route || []).filter(p =>
               Number.isFinite(Number(p.lat)) &&
               Number.isFinite(Number(p.lon))
-            );
+            ).map(p => [Number(p.lat), Number(p.lon)]);
 
-            routeLine.setLatLngs(
-              points.map(p => [Number(p.lat), Number(p.lon)])
-            );
+            currentRoute = points;
+            renderRouteLine();
 
             if (!data.latest) {
               label.textContent = "GPS: очікування";
@@ -420,28 +527,41 @@
             const kmh = Math.round((Number(p.speed) || 0) * 1.852);
             speedValue.textContent = String(kmh);
 
-            playerMarker.setLatLng([lat, lon]);
-
             const pointKey = lat.toFixed(6) + "," + lon.toFixed(6);
+            const isNewPoint = pointKey !== lastPointKey;
+            lastPointKey = pointKey;
 
             if (firstFix) {
-              if (FOLLOW) {
-                map.setView([lat, lon], ZOOM, { animate: false });
-              }
-              firstFix = false;
-            }
+              // Перший сигнал: маркер з'являється одразу,
+              // камера плавно «підлітає» до нього.
+              playerMarker.setLatLng([lat, lon]);
 
-            if (FOLLOW) {
-              // Камера слідкує за GPS-маркером.
-              // Якщо точка не змінилась, не рухаємо карту без потреби.
-              if (pointKey !== lastPointKey) {
-                map.panTo([lat, lon], { animate: false });
-                lastPointKey = pointKey;
+              if (FOLLOW) {
+                map.setView([lat, lon], ZOOM, {
+                  animate: true,
+                  duration: 1.5
+                });
               }
-            } else if (!CENTER) {
-              // Фіксованого центру немає — вміщуємо весь маршрут
-              // у полі зору, але камера не «прилипає» до маркера.
-              keepRouteInView([lat, lon]);
+
+              firstFix = false;
+            } else {
+              // Між оновленнями GPS маркер їде плавно.
+              if (isNewPoint) animateMarker(lat, lon);
+
+              if (FOLLOW) {
+                // Камера слідкує за GPS-маркером.
+                // Якщо точка не змінилась, не рухаємо карту без потреби.
+                if (isNewPoint) {
+                  map.panTo([lat, lon], {
+                    animate: true,
+                    duration: 0.75
+                  });
+                }
+              } else if (!CENTER) {
+                // Фіксованого центру немає — вміщуємо весь маршрут
+                // у полі зору, але камера не «прилипає» до маркера.
+                keepRouteInView([lat, lon]);
+              }
             }
 
             status.classList.add("online");

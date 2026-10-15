@@ -16,16 +16,16 @@
       }
     },
     {
-      "token": "HeH0Ytuf-qKmJNJGBmus-n_v",
+      "token": "wpwPBMYCAdMn3b5corE63NCS",
       "baseUrl": "http://127.0.0.1:8083",
       "username": "test",
       "password": "test",
       "identifier": "testgps",
       "hours": 24,
       "deviceName": "Тестовий маршрут",
-      "createdAt": "2026-10-14T23:34:46.757Z",
+      "createdAt": "2026-10-15T01:01:37.768Z",
       "view": {
-        "follow": false,
+        "follow": true,
         "zoom": 16,
         "center": null
       }

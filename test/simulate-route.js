@@ -48,9 +48,9 @@ const DEVICE_UID = process.env.SIM_DEVICE_UID || "testgps";
 const DEVICE_NAME = process.env.SIM_DEVICE_NAME || "Тестовий маршрут";
 const AUTH_USER = "test";
 const AUTH_PASS = "test";
-const SPEED_KMH = Number(process.env.SIM_SPEED_KMH || 30);
+const SPEED_KMH = Number(process.env.SIM_SPEED_KMH || 14);
 const TIME_SCALE = Number(process.env.SIM_TIME_SCALE || 8);
-const SAMPLE_STEP = Number(process.env.SIM_SAMPLE_STEP || 2);
+const SAMPLE_STEP = Number(process.env.SIM_SAMPLE_STEP || 1);
 const LOOP = process.env.SIM_LOOP === "1";
 const HISTORY_HOURS = 24;
 
