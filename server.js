@@ -189,7 +189,17 @@ class Widget {
           last.lon !== point.lon) {
         this.route.push(point);
         if (this.route.length > MAX_ROUTE_POINTS) this.route.shift();
+        console.log(
+          `[${this.token}] Нова позиція: ${point.lat.toFixed(5)},${point.lon.toFixed(5)} ` +
+          `швидкість: ${(point.speed || 0).toFixed(1)} км/год ` +
+          `час: ${new Date(point.time).toLocaleTimeString("uk-UA")} ` +
+          `(точок у маршруті: ${this.route.length})`
+        );
       }
+    } else {
+      console.log(
+        `[${this.token}] Позиція не знайдена для пристрою ID ${this.deviceId}`
+      );
     }
 
     return {
@@ -424,6 +434,46 @@ app.get("/api/widgets", (req, res) => {
       .filter(w => w.token !== ENV_TOKEN)
       .map(publicWidget)
   });
+});
+
+app.patch("/api/widgets/:token", async (req, res) => {
+  try {
+    const token = String(req.params.token || "");
+    const widget = widgets.get(token);
+    if (!widget || token === ENV_TOKEN) {
+      return res.status(404).json({ error: "Віджет не знайдено" });
+    }
+
+    const body = req.body || {};
+    let changed = false;
+
+    if (body.hours !== undefined) {
+      const h = Math.min(
+        168,
+        Math.max(1, Math.round(Number(body.hours) || DEFAULT_HOURS))
+      );
+      if (widget.hours !== h) {
+        widget.hours = h;
+        changed = true;
+      }
+    }
+
+    if (body.view) {
+      const v = normalizeView(body.view);
+      if (JSON.stringify(widget.view) !== JSON.stringify(v)) {
+        widget.view = v;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveWidgets();
+    }
+
+    res.json({ ok: true, widget: publicWidget(widget) });
+  } catch (e) {
+    res.status(500).json({ error: e.message || String(e) });
+  }
 });
 
 app.delete("/api/widgets/:token", (req, res) => {

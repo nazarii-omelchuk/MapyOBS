@@ -1,16 +1,31 @@
 {
   "widgets": [
     {
-      "token": "iSfMvfEhL0lw89Qe6zWY3PBG",
+      "token": "8UwQ1Lzl1dCiV8Mnt7GR5JDR",
+      "baseUrl": "http://127.0.0.1:8082",
+      "username": "nazar.omelchuk.m@gmail.com",
+      "password": "1239Fg27-",
+      "identifier": "masllory",
+      "hours": 12,
+      "deviceName": "masllory",
+      "createdAt": "2026-10-15T21:28:55.169Z",
+      "view": {
+        "follow": true,
+        "zoom": 16,
+        "center": null
+      }
+    },
+    {
+      "token": "8Z-jsb-nJz7SPuLV8CgcL2pz",
       "baseUrl": "http://127.0.0.1:8082",
       "username": "nazar.omelchuk.m@gmail.com",
       "password": "1239Fg27-",
       "identifier": "myredmigps",
-      "hours": 24,
+      "hours": 1,
       "deviceName": "My Redmi",
-      "createdAt": "2026-10-15T15:58:51.449Z",
+      "createdAt": "2026-10-16T17:55:05.711Z",
       "view": {
-        "follow": false,
+        "follow": true,
         "zoom": 16,
         "center": null
       }

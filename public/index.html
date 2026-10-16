@@ -583,6 +583,8 @@
         }, 1600);
       }
 
+      let editingToken = null;
+
       async function loadWidgets() {
         const { data } = await api("/api/widgets");
         const widgets = (data && data.widgets) || [];
@@ -597,56 +599,181 @@
         }
 
         for (const w of widgets) {
+          const isEditing = editingToken === w.token;
           const row = document.createElement("div");
           row.className = "widget-row";
 
-          const info = document.createElement("div");
-          info.className = "widget-info";
+          if (isEditing) {
+            renderEditRow(row, w);
+          } else {
+            renderNormalRow(row, w);
+          }
 
-          const name = document.createElement("div");
-          name.className = "name";
-          name.textContent = w.deviceName || w.identifier;
-
-          const meta = document.createElement("div");
-          meta.className = "meta";
-          const follows = w.view ? w.view.follow !== false : true;
-          meta.textContent =
-            `${w.identifier} • ${w.baseUrl} • ` +
-            `${follows ? "камера слідкує" : "фіксована камера"} • ` +
-            `створено ${new Date(w.createdAt).toLocaleString("uk-UA")}`;
-
-          info.append(name, meta);
-
-          const open = document.createElement("a");
-          open.className = "btn primary mini-btn";
-          open.href = fullUrl(w.overlayUrl);
-          open.target = "_blank";
-          open.rel = "noopener";
-          open.textContent = "Відкрити";
-
-          const copy = document.createElement("button");
-          copy.type = "button";
-          copy.className = "btn ghost mini-btn";
-          copy.textContent = "Копіювати";
-          copy.addEventListener("click", () =>
-            copyText(fullUrl(w.overlayUrl))
-          );
-
-          const del = document.createElement("button");
-          del.type = "button";
-          del.className = "btn ghost mini-btn";
-          del.textContent = "Видалити";
-          del.addEventListener("click", async () => {
-            if (!confirm("Видалити цей віджет?")) return;
-            await api("/api/widgets/" + encodeURIComponent(w.token), {
-              method: "DELETE"
-            });
-            loadWidgets();
-          });
-
-          row.append(info, open, copy, del);
           widgetsList.append(row);
         }
+      }
+
+      function renderNormalRow(row, w) {
+        const info = document.createElement("div");
+        info.className = "widget-info";
+
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = w.deviceName || w.identifier;
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        const follows = w.view ? w.view.follow !== false : true;
+        meta.textContent =
+          `${w.identifier} • ${w.baseUrl} • ` +
+          `${follows ? "камера слідкує" : "фіксована камера"} • ` +
+          `історія: ${w.hours} год • ` +
+          `створено ${new Date(w.createdAt).toLocaleString("uk-UA")}`;
+
+        info.append(name, meta);
+
+        const open = document.createElement("a");
+        open.className = "btn primary mini-btn";
+        open.href = fullUrl(w.overlayUrl);
+        open.target = "_blank";
+        open.rel = "noopener";
+        open.textContent = "Відкрити";
+
+        const copy = document.createElement("button");
+        copy.type = "button";
+        copy.className = "btn ghost mini-btn";
+        copy.textContent = "Копіювати";
+        copy.addEventListener("click", async () => {
+          const url = fullUrl(w.overlayUrl);
+          try {
+            await navigator.clipboard.writeText(url);
+          } catch (e) {
+            const ta = document.createElement("textarea");
+            ta.value = url;
+            document.body.append(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+          }
+          copy.textContent = "Скопійовано";
+          setTimeout(() => {
+            copy.textContent = "Копіювати";
+          }, 1600);
+        });
+
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn ghost mini-btn";
+        del.textContent = "Видалити";
+        del.addEventListener("click", async () => {
+          if (!confirm("Видалити цей віджет?")) return;
+          await api("/api/widgets/" + encodeURIComponent(w.token), {
+            method: "DELETE"
+          });
+          loadWidgets();
+        });
+
+        const edit = document.createElement("button");
+        edit.type = "button";
+        edit.className = "btn ghost mini-btn";
+        edit.textContent = "Редагувати";
+        edit.addEventListener("click", () => startEdit(w.token));
+
+        row.append(info, open, copy, edit, del);
+      }
+
+      function renderEditRow(row, w) {
+        const info = document.createElement("div");
+        info.className = "widget-info";
+
+        const name = document.createElement("div");
+        name.className = "name";
+        name.textContent = "Редагування віджету";
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = w.deviceName || w.identifier;
+        info.append(name, meta);
+
+        const form = document.createElement("form");
+        form.className = "edit-form";
+        form.style.display = "flex";
+        row.append(info, form);
+
+        const hoursLabel = document.createElement("label");
+        hoursLabel.style.display = "flex";
+        hoursLabel.style.flexDirection = "column";
+        hoursLabel.style.flex = "1";
+        hoursLabel.style.minWidth = "140px";
+        hoursLabel.innerHTML = '<b>Історія, годин</b><input type="number" min="1" max="168">';
+        const hoursInput = hoursLabel.querySelector("input");
+        hoursInput.value = w.hours;
+
+        const followLabel = document.createElement("label");
+        followLabel.className = "checkbox";
+        followLabel.style.flex = "0 0 auto";
+        followLabel.style.marginLeft = "12px";
+        followLabel.innerHTML = '<input type="checkbox">' +
+          '<span style="margin-left:6px">Камера слідкує</span>';
+        const followInput = followLabel.querySelector("input");
+        followInput.checked = w.view && w.view.follow !== false;
+
+        const zoomLabel = document.createElement("label");
+        zoomLabel.style.display = "flex";
+        zoomLabel.style.flexDirection = "column";
+        zoomLabel.style.flex = "1";
+        zoomLabel.style.minWidth = "100px";
+        zoomLabel.innerHTML = '<b>Зум</b><input type="number" min="3" max="19">';
+        const zoomInput = zoomLabel.querySelector("input");
+        zoomInput.value = w.view && w.view.zoom ? w.view.zoom : 16;
+
+        const saveBtn = document.createElement("button");
+        saveBtn.type = "button";
+        saveBtn.className = "btn primary mini-btn";
+        saveBtn.textContent = "Зберегти";
+        saveBtn.style.marginLeft = "10px";
+
+        const cancelBtn = document.createElement("button");
+        cancelBtn.type = "button";
+        cancelBtn.className = "btn ghost mini-btn";
+        cancelBtn.textContent = "Скасувати";
+        cancelBtn.style.marginLeft = "8px";
+
+        form.append(hoursLabel, followLabel, zoomLabel, saveBtn, cancelBtn);
+
+        saveBtn.addEventListener("click", async () => {
+          const h = Number(hoursInput.value) || w.hours;
+          const follow = followInput.checked;
+          const z = Number(zoomInput.value) || 16;
+
+          const { ok, data } = await api("/api/widgets/" + encodeURIComponent(w.token), {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              hours: h,
+              view: { follow, zoom: z, center: w.view && w.view.center ? w.view.center : null }
+            })
+          });
+
+          if (!ok) {
+            setStatus("error", data.error || "Не вдалося оновити віджет");
+            return;
+          }
+
+          editingToken = null;
+          loadWidgets();
+          setStatus("success", "Віджет оновлено");
+        });
+
+        cancelBtn.addEventListener("click", () => {
+          editingToken = null;
+          loadWidgets();
+        });
+      }
+
+      function startEdit(token) {
+        editingToken = token;
+        loadWidgets();
       }
 
       form.addEventListener("submit", async e => {
