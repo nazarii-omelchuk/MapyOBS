@@ -507,7 +507,6 @@
             ).map(p => [Number(p.lat), Number(p.lon)]);
 
             currentRoute = points;
-            renderRouteLine();
 
             if (!data.latest) {
               label.textContent = "GPS: очікування";
@@ -543,10 +542,13 @@
                 });
               }
 
+              renderRouteLine();
               firstFix = false;
             } else {
               // Між оновленнями GPS маркер їде плавно.
               if (isNewPoint) animateMarker(lat, lon);
+
+              renderRouteLine();
 
               if (FOLLOW) {
                 // Камера слідкує за GPS-маркером.

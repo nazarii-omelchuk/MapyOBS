@@ -48,8 +48,8 @@ const DEVICE_UID = process.env.SIM_DEVICE_UID || "testgps";
 const DEVICE_NAME = process.env.SIM_DEVICE_NAME || "Тестовий маршрут";
 const AUTH_USER = "test";
 const AUTH_PASS = "test";
-const SPEED_KMH = Number(process.env.SIM_SPEED_KMH || 14);
-const TIME_SCALE = Number(process.env.SIM_TIME_SCALE || 8);
+const SPEED_KMH = Number(process.env.SIM_SPEED_KMH || 5);
+const TIME_SCALE = Number(process.env.SIM_TIME_SCALE || 1);
 const SAMPLE_STEP = Number(process.env.SIM_SAMPLE_STEP || 1);
 const LOOP = process.env.SIM_LOOP === "1";
 const HISTORY_HOURS = 24;
@@ -58,8 +58,8 @@ const VIEW_FOLLOW = process.env.SIM_FOLLOW !== "0";
 const VIEW_ZOOM = Number(process.env.SIM_ZOOM || 16);
 const VIEW_CENTER = process.env.SIM_CENTER || "";
 
-const START_ADDRESS = "вулиця Куліша 7, Київ, Україна";
-const END_ADDRESS = "вулиця Гната Юри 10, Київ, Україна";
+const START_ADDRESS = "вулиця Куліша 1, Київ, Україна";
+const END_ADDRESS = "вулиця Володимирська 20, Зарічне, Україна";
 
 async function fetchJson(url, init) {
   const r = await fetch(url, init);
